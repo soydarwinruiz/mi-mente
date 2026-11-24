@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Mi Mente</string>
+    <string name="sc_note">Nueva nota</string>
+    <string name="sc_voice">Grabar idea</string>
+    <string name="sc_ask">Preguntar a mi mente</string>
+    <string name="sc_photo">Foto rápida</string>
+</resources>

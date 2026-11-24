@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="note" android:enabled="true" android:icon="@drawable/ic_sc_note" android:shortcutShortLabel="@string/sc_note">
+        <intent android:action="com.mimente.app.NEW_NOTE" android:targetPackage="com.mimente.app" android:targetClass="com.mimente.app.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="voice" android:enabled="true" android:icon="@drawable/ic_sc_mic" android:shortcutShortLabel="@string/sc_voice">
+        <intent android:action="com.mimente.app.NEW_VOICE" android:targetPackage="com.mimente.app" android:targetClass="com.mimente.app.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="ask" android:enabled="true" android:icon="@drawable/ic_sc_spark" android:shortcutShortLabel="@string/sc_ask">
+        <intent android:action="com.mimente.app.ASK" android:targetPackage="com.mimente.app" android:targetClass="com.mimente.app.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="photo" android:enabled="true" android:icon="@drawable/ic_sc_camera" android:shortcutShortLabel="@string/sc_photo">
+        <intent android:action="com.mimente.app.NEW_PHOTO" android:targetPackage="com.mimente.app" android:targetClass="com.mimente.app.MainActivity" />
+    </shortcut>
+</shortcuts>
