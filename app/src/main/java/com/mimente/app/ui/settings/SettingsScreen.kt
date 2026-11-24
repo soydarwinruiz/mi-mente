@@ -81,7 +81,7 @@ fun SettingsScreen() {
     var key by remember { mutableStateOf(Prefs.apiKey) }
     var showKey by remember { mutableStateOf(false) }
     var model by remember { mutableStateOf(Prefs.model) }
-    var models by remember { mutableStateOf(listOf(Prefs.DEFAULT_MODEL, "gemini-2.5-pro", "gemini-2.5-flash-lite")) }
+    var models by remember { mutableStateOf(com.mimente.app.ai.Models.aliases) }
     var testing by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
     val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -104,13 +104,21 @@ fun SettingsScreen() {
         if (key.isBlank()) { status = "Escribe tu clave primero."; return }
         testing = true; status = null
         scope.launch {
-            runCatching { Gemini.listModels(key.trim()) }
-                .onSuccess { list ->
-                    if (list.isNotEmpty()) models = list
-                    status = "✓ Conectado. ${list.size} modelos disponibles."
+            runCatching {
+                val list = runCatching { Gemini.listModels(key.trim()) }.getOrElse { e ->
+                    // Si la clave es mala, decirlo ya; si solo falla el listado, seguir con los alias.
+                    if (e is com.mimente.app.ai.GeminiException && !e.modelProblem) throw e
+                    emptyList()
+                }
+                if (list.isNotEmpty()) models = com.mimente.app.ai.Models.rank(list)
+                com.mimente.app.ai.Models.ensureWorking(key.trim(), list) to list.size
+            }
+                .onSuccess { (working, n) ->
+                    model = working
+                    status = "✓ Conectado. Gemini responde con $working" + if (n > 0) " ($n modelos en tu cuenta)." else "."
                     feel(Feel.Confirm)
                 }
-                .onFailure { status = "✗ ${it.message}"; feel(Feel.Reject) }
+                .onFailure { status = "✗ ${it.message ?: it.javaClass.simpleName}"; feel(Feel.Reject) }
             testing = false
         }
     }
@@ -153,7 +161,7 @@ fun SettingsScreen() {
 
                 item {
                     Section(Ico.Spark, "Modelo", Candy.Grape) {
-                        Text("Pulsa «Guardar y probar» para cargar todos los modelos de tu cuenta.", style = Type.Label, color = p.inkSoft)
+                        Text("«Guardar y probar» carga los modelos de tu cuenta y elige uno que funcione. Los alias *-latest se actualizan solos.", style = Type.Label, color = p.inkSoft)
                         Spacer(Modifier.height(12.dp))
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             models.take(14).forEach { m ->
@@ -162,7 +170,15 @@ fun SettingsScreen() {
                         }
                         Spacer(Modifier.height(12.dp))
                         GlassTextField(model, { model = it }, "Otro modelo", trailing = {
-                            GlassCircle(Ico.Check, "Usar", size = 40.dp, tint = Candy.Sky) { Prefs.setModel(model); Toaster.show("Modelo: ${Prefs.model}") }
+                            GlassCircle(Ico.Check, "Usar", size = 40.dp, tint = Candy.Sky) {
+                                Prefs.setModel(model)
+                                if (Prefs.apiKey.isBlank()) Toaster.show("Modelo: ${Prefs.model}")
+                                else scope.launch {
+                                    runCatching { com.mimente.app.ai.Models.probe(Prefs.apiKey, Prefs.model) }
+                                        .onSuccess { Toaster.show("✓ ${Prefs.model} responde") }
+                                        .onFailure { Toaster.show("✗ ${Prefs.model}: ${it.message}") }
+                                }
+                            }
                         })
                     }
                 }

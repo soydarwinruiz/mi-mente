@@ -53,11 +53,15 @@ object AiRunner {
                     if (question != null && Prefs.webSearch) add("google_search")
                 }
                 var last = ""
-                Gemini.stream(key, Prefs.model, listOf(Gemini.Turn("user", parts)), system(), tools).collect {
-                    last = it
-                    live[item.id] = Live(label, it)
+                Models.withWorkingModel(key, ::announceSwitch) { model ->
+                    Gemini.stream(key, model, listOf(Gemini.Turn("user", parts)), system(), tools).collect {
+                        last = it
+                        live[item.id] = Live(label, it)
+                    }
                 }
                 Store.update(item.id) { it.copy(ai = listOf(AiNote(action = label, text = last.trim())) + it.ai) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Toaster.show(e.message ?: "No se pudo completar")
             } finally {
@@ -66,6 +70,8 @@ object AiRunner {
             }
         }
     }
+
+    fun announceSwitch(model: String) = Toaster.show("Tu modelo anterior no está disponible; ahora uso $model")
 
     fun cancel(itemId: String) { jobs[itemId]?.cancel() }
 
@@ -86,12 +92,14 @@ object AiRunner {
                     "\"titulo\": título descriptivo de máximo 6 palabras; " +
                     "\"resumen\": una o dos frases con lo esencial; $extraField."
                 val parts = Content.partsFor(item, key) + Gemini.Part.Text(ask)
-                val raw = if (Content.needsUrlContext(item)) {
-                    // url_context no admite salida JSON forzada: se pide en texto y se extrae.
-                    var out = ""
-                    Gemini.stream(key, Prefs.model, listOf(Gemini.Turn("user", parts)), system(), setOf("url_context")).collect { out = it }
-                    out
-                } else Gemini.generate(key, Prefs.model, listOf(Gemini.Turn("user", parts)), system(), jsonOutput = true)
+                val raw = Models.withWorkingModel(key, ::announceSwitch) { model ->
+                    if (Content.needsUrlContext(item)) {
+                        // url_context no admite salida JSON forzada: se pide en texto y se extrae.
+                        var out = ""
+                        Gemini.stream(key, model, listOf(Gemini.Turn("user", parts)), system(), setOf("url_context")).collect { out = it }
+                        out
+                    } else Gemini.generate(key, model, listOf(Gemini.Turn("user", parts)), system(), jsonOutput = true)
+                }
                 val o = JSONObject(raw.substring(raw.indexOf('{'), raw.lastIndexOf('}') + 1))
                 val title = o.optString("titulo").trim().trim('"', '.')
                 val gist = o.optString("resumen").trim()

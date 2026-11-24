@@ -1,20 +1,14 @@
-Primera versión de **Mi Mente**: tu segundo cerebro para Android con IA (Gemini / Google AI Studio) y diseño de vidrio líquido.
+## Mi Mente 1.0.1: arreglo de la conexión con Gemini
+
+Google retiró `gemini-2.5-flash` para cuentas nuevas, y era el modelo por defecto de la app. Por eso la IA no respondía.
+
+- El modelo por defecto pasa a ser **`gemini-flash-latest`**, el alias que Google mantiene siempre apuntando al Flash más reciente.
+- **Guardar y probar** en Ajustes ahora hace una petición real a Gemini, no solo lista modelos. Si el modelo elegido no está disponible para tu clave, prueba los de tu cuenta y se queda con el primero que responde.
+- Si un modelo deja de estar disponible más adelante, la app cambia sola a otro y te avisa.
+- Mensajes de error más claros, que distinguen entre clave no válida, modelo no disponible y cuota agotada, e incluyen el texto exacto de Google.
+- Al pulsar «Detener» ya no aparece un mensaje de error.
 
 ## Instalar
-1. Descarga `MiMente-1.0.0.apk` (abajo, en *Assets*) desde el teléfono.
-2. Ábrelo y permite instalar desde orígenes desconocidos si Android lo pide.
-3. Requiere Android 8.0 o superior.
+Descarga `MiMente-1.0.1.apk` (abajo, en *Assets*). Si tenías instalada la 1.0.0 que se envió por el chat, desinstálala primero: está firmada con otra clave. La 1.0.0 del Release de GitHub sí se actualiza directamente.
 
-## Configurar la IA
-Crea una clave gratuita en https://aistudio.google.com/apikey y pégala en **Ajustes → Google AI Studio → Guardar y probar**.
-
-## Novedades
-- Captura rápida: nota, lista, cámara, galería, archivo, enlace, pegar y voz.
-- Compartir desde cualquier app hacia Mi Mente, y accesos directos en el icono.
-- Al guardar: título, resumen, transcripción y texto visible automáticos.
-- Acciones de IA de un toque: Resumir, Transcribir, Describir, Extraer texto, Puntos clave, Tareas, Traducir, Ideas, Cuestionario y Redactar.
-- Chat «Pregúntale a tu mente» con citas a tus elementos, adjuntos y búsqueda web opcional.
-- Admite imágenes, audio, video, PDF, Word, Excel, PowerPoint, texto y enlaces (incluido YouTube).
-- Tema claro y oscuro, copias de seguridad en .zip.
-
-> El APK está firmado con una clave de desarrollo: sirve para instalarlo directamente, no para Play Store.
+Después abre **Ajustes → Google AI Studio → Guardar y probar**.

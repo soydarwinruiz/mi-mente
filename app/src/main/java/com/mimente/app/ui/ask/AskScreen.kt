@@ -178,7 +178,9 @@ fun AskScreen() {
                     if (attachIds.any { Store.get(it)?.let(Content::needsUrlContext) == true }) add("url_context")
                 }
                 var last = ""
-                Gemini.stream(key, Prefs.model, turns, system, tools).collect { last = it; AskSession.live = it }
+                com.mimente.app.ai.Models.withWorkingModel(key, AiRunner::announceSwitch) { model ->
+                    Gemini.stream(key, model, turns, system, tools).collect { last = it; AskSession.live = it }
+                }
                 AskSession.messages += AskSession.Msg(false, last.trim())
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e

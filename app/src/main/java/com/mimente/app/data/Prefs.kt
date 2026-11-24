@@ -31,12 +31,14 @@ object Prefs {
     var glassBlur by mutableFloatStateOf(24f)
         private set
 
-    const val DEFAULT_MODEL = "gemini-2.5-flash"
+    const val DEFAULT_MODEL = "gemini-flash-latest"
 
     fun init(context: Context) {
         sp = context.getSharedPreferences("mimente", Context.MODE_PRIVATE)
         apiKey = sp.getString("apiKey", "") ?: ""
         model = sp.getString("model", DEFAULT_MODEL) ?: DEFAULT_MODEL
+        // Los modelos 2.5 Flash/Pro están retirados para cuentas nuevas: pasar al alias que Google mantiene.
+        if (model == "gemini-2.5-flash" || model == "gemini-2.5-pro") setModel(DEFAULT_MODEL)
         language = sp.getInt("language", 1)
         autoProcess = sp.getBoolean("autoProcess", true)
         webSearch = sp.getBoolean("webSearch", false)

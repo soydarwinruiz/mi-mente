@@ -16,7 +16,8 @@ import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-class GeminiException(message: String) : Exception(message)
+/** [modelProblem]: el modelo no existe o no está disponible para esta clave (se puede cambiar de modelo). */
+class GeminiException(message: String, val modelProblem: Boolean = false) : Exception(message)
 
 /** Cliente mínimo de la API de Gemini (Google AI Studio) por REST. */
 object Gemini {
@@ -63,16 +64,24 @@ object Gemini {
         if (jsonOutput) put("generationConfig", JSONObject().put("responseMimeType", "application/json"))
     }.toString()
 
-    private fun errorText(code: Int, raw: String): String {
-        val msg = runCatching { JSONObject(raw).getJSONObject("error").getString("message") }.getOrNull()
-        return when (code) {
-            400 -> if (msg?.contains("API key", true) == true) "La clave de API no es válida. Revísala en Ajustes." else "Solicitud no válida: ${msg ?: raw.take(200)}"
-            401, 403 -> "La clave de API fue rechazada (${msg ?: code}). Revísala en Ajustes."
-            404 -> "El modelo no existe o no está disponible: ${msg ?: ""}"
-            429 -> "Límite de uso alcanzado. Espera un momento e inténtalo de nuevo."
-            in 500..599 -> "El servicio de Google no respondió bien ($code). Inténtalo otra vez."
-            else -> msg ?: "Error $code"
+    private fun failure(code: Int, raw: String): GeminiException {
+        val err = runCatching { JSONObject(raw).getJSONObject("error") }.getOrNull()
+        val msg = err?.optString("message").orEmpty()
+        val status = err?.optString("status").orEmpty()
+        val m = msg.lowercase()
+        val keyProblem = "api key" in m || "api_key" in m || status == "UNAUTHENTICATED"
+        val modelProblem = !keyProblem && (code == 404 || ("model" in m &&
+            listOf("not found", "not supported", "no longer", "not available", "deprecated", "access", "permission").any { it in m }))
+        val text = when {
+            keyProblem -> "La clave de API no es válida o no tiene permiso. Revísala en Ajustes. ($msg)"
+            modelProblem -> "El modelo no está disponible para tu clave. ($msg)"
+            code == 429 -> "Límite de uso alcanzado (cuota gratuita). Espera un momento o cambia de modelo. ($msg)"
+            code in 500..599 -> "El servicio de Google no respondió bien ($code). Inténtalo otra vez."
+            code == 400 -> "Solicitud no válida: ${msg.ifEmpty { raw.take(200) }}"
+            code == 403 -> "Acceso denegado por Google: ${msg.ifEmpty { "HTTP 403" }}"
+            else -> msg.ifEmpty { "Error HTTP $code" }
         }
+        return GeminiException(text, modelProblem)
     }
 
     private fun textOf(chunk: JSONObject): String {
@@ -105,7 +114,7 @@ object Gemini {
             .post(body(turns, system, tools, false).toRequestBody(json))
             .build()
         http.newCall(req).execute().use { res ->
-            if (!res.isSuccessful) throw GeminiException(errorText(res.code, res.body?.string().orEmpty()))
+            if (!res.isSuccessful) throw failure(res.code, res.body?.string().orEmpty())
             val src = res.body!!.source()
             val acc = StringBuilder()
             while (!src.exhausted()) {
@@ -138,7 +147,7 @@ object Gemini {
             .build()
         http.newCall(req).execute().use { res ->
             val raw = res.body?.string().orEmpty()
-            if (!res.isSuccessful) throw GeminiException(errorText(res.code, raw))
+            if (!res.isSuccessful) throw failure(res.code, raw)
             textOf(JSONObject(raw))
         }
     }
@@ -152,7 +161,7 @@ object Gemini {
             val req = Request.Builder().url(url).header("x-goog-api-key", apiKey).get().build()
             http.newCall(req).execute().use { res ->
                 val raw = res.body?.string().orEmpty()
-                if (!res.isSuccessful) throw GeminiException(errorText(res.code, raw))
+                if (!res.isSuccessful) throw failure(res.code, raw)
                 val o = JSONObject(raw)
                 val arr = o.optJSONArray("models") ?: JSONArray()
                 for (i in 0 until arr.length()) {
@@ -181,7 +190,7 @@ object Gemini {
             .post(JSONObject().put("file", JSONObject().put("display_name", displayName.take(120))).toString().toRequestBody(json))
             .build()
         val uploadUrl = http.newCall(start).execute().use { res ->
-            if (!res.isSuccessful) throw GeminiException(errorText(res.code, res.body?.string().orEmpty()))
+            if (!res.isSuccessful) throw failure(res.code, res.body?.string().orEmpty())
             res.header("x-goog-upload-url") ?: throw GeminiException("No se pudo iniciar la subida del archivo.")
         }
         val up = Request.Builder()
@@ -192,7 +201,7 @@ object Gemini {
             .build()
         val fileObj = http.newCall(up).execute().use { res ->
             val raw = res.body?.string().orEmpty()
-            if (!res.isSuccessful) throw GeminiException(errorText(res.code, raw))
+            if (!res.isSuccessful) throw failure(res.code, raw)
             JSONObject(raw).getJSONObject("file")
         }
         var state = fileObj.optString("state")
